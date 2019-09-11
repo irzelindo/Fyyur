@@ -154,7 +154,6 @@ def create_app(test_config=None):
                     'status_code_message': 'OK',
                     'questions': current_questions,
                     'total_questions': len(questions),
-                    'current_category': len(categories),
                     'categories': categories
                 })
 
@@ -281,7 +280,6 @@ def create_app(test_config=None):
                 'success': True,
                 'status_code': 200,
                 'status_code_message': 'Ok',
-                'current_category': 2,
                 'questions': found_questions,
                 'total_questions': len(questions)
             })
@@ -319,7 +317,7 @@ def create_app(test_config=None):
                     'success': True,
                     'status_code': 200,
                     'status_code_message': 'OK',
-                    'current_category': category_id-1,
+                    'current_category': category_id,
                     'questions': filtered_questions,
                     'total_questions': len(questions)
                 })
