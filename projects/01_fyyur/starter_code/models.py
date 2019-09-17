@@ -2,7 +2,7 @@
   This file contains all the database connection definition,
   and all the CRUD for Fyyur web app.
 """
-from sqlalchemy import Column, String, Integer
+from sqlalchemy import Column, String, Integer, Boolean
 from flask_sqlalchemy import SQLAlchemy
 from config import SQLALCHEMY_DATABASE_URI
 from flask_migrate import Migrate
@@ -59,8 +59,16 @@ class Venue(db.Model, crud_ops):
     phone = Column(String(120))
     image_link = Column(String(500))
     facebook_link = Column(String(120))
+    website = Column(String(250))
+    seeking_talent = Column(Boolean, default=True)
+    seeking_description = Column(String(500))
 
-    def __init__(self, venue_id, name, city, state, address, phone, image_link, facebook_link):
+    def __init__(self, venue_id, name, city, state, address, phone,
+                 image_link, facebook_link, website, seeking_talent,
+                 seeking_description):
+        self.website = website
+        self.seeking_talent = seeking_talent
+        self.seeking_description = seeking_description
         self.state = state
         self.address = address
         self.phone = phone
@@ -73,6 +81,9 @@ class Venue(db.Model, crud_ops):
     def serialize(self):
         """ Serialize venue row """
         return {
+            "website": self.website,
+            "seeking_talent": self.seeking_talent,
+            "seeking_description": self.seeking_description,
             "state": self.state,
             "address": self.address,
             "phone": self.phone,
@@ -95,9 +106,16 @@ class Artist(db.Model, crud_ops):
     genres = Column(String(120))
     image_link = Column(String(500))
     facebook_link = Column(String(120))
+    website = Column(String(250))
+    seeking_venue = Column(Boolean, default=True)
+    seeking_description = Column(String(500))
 
     def __init__(self, artist_id, name, city, state, phone, genres,
-                 image_link, facebook_link):
+                 image_link, facebook_link, website, seeking_venue,
+                 seeking_description):
+        self.website = website
+        self.seeking_venue = seeking_venue
+        self.seeking_description = seeking_description
         self.city = city
         self.state = state
         self.phone = phone
@@ -110,6 +128,9 @@ class Artist(db.Model, crud_ops):
     def serialize(self):
         """ Serialize venue row """
         return {
+            "website": self.website,
+            "seeking_venue": self.seeking_venue,
+            "seeking_description": self.seeking_description,
             "state": self.state,
             "address": self.address,
             "genres": self.genres,
