@@ -2,21 +2,15 @@
   This file contains all the database connection definition,
   and all the CRUD for Fyyur web app.
 """
-from sqlalchemy import Column, String, Integer, Boolean
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from config import SQLALCHEMY_DATABASE_URI
+from config import Config
 from flask_migrate import Migrate
 
-DATABASE_PATH = SQLALCHEMY_DATABASE_URI
+DATABASE_PATH = Config.SQLALCHEMY_DATABASE_URI
 
-# print(DATABASE_PATH)
 
 db = SQLAlchemy()
-
-"""
-setup_db(app)
-    binds a flask application and a SQLAlchemy service
-"""
 
 
 def setup_db(app, database_path=DATABASE_PATH):
@@ -27,6 +21,8 @@ def setup_db(app, database_path=DATABASE_PATH):
     db.app = app
     migrate = Migrate(app, db)
     db.init_app(app)
+    # No need to run db.create_all() as for now using flask migrations
+    # library.
     db.create_all()
 
 # All necessary CRUD operations superclass
@@ -46,22 +42,54 @@ class crud_ops():
         db.session.delete(self)
         db.session.commit()
 
+
+class Link(db.Model, crud_ops):
+    __tablename__="link"
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), primary_key=True)
+    genre_id = db.Column(db.Integer, db.ForeignKey("genres.id"), primary_key=True)
+    likes = db.Column(db.Integer)
+    deslikes = db.Column(db.Integer)
+
+
+class Genre(db.Model, crud_ops):
+    __tablename__ = "genres"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(30))
+    description = db.Column(db.String(250))
+    artists = db.relationship("Artist", secondary="link")
+
+    def __init__(self, genre_id, name, description, artists):
+        self.id = genre_id
+        self.name = name
+        self.description = description
+        self.artists = artists
+
+    def serialize(self):
+        """ Serialize genres table row data """
+        return {
+            "genre_id": self.genre_id,
+            "name": self.name,
+            "description": self.description
+        }
+
 # Defining Venue model
 # Inherits from db.Model and crud_ops
 class Venue(db.Model, crud_ops):
-    __tablename__ = 'venue'
+    __tablename__ = 'venues'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    city = Column(String(120))
-    state = Column(String(120))
-    address = Column(String(120))
-    phone = Column(String(120))
-    image_link = Column(String(500))
-    facebook_link = Column(String(120))
-    website = Column(String(250))
-    seeking_talent = Column(Boolean, default=True)
-    seeking_description = Column(String(500))
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    city = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    phone = db.Column(db.String(120))
+    image_link = db.Column(db.String(500))
+    facebook_link = db.Column(db.String(120))
+    website = db.Column(db.String(250))
+    seeking_talent = db.Column(db.Boolean, default=True)
+    seeking_description = db.Column(db.String(500))
+    shows = db.relationship("Show")
+    address = db.relationship("Venue_Address")
 
     def __init__(self, venue_id, name, city, state, address, phone,
                  image_link, facebook_link, website, seeking_talent,
@@ -79,7 +107,7 @@ class Venue(db.Model, crud_ops):
         self.id = venue_id
 
     def serialize(self):
-        """ Serialize venue row """
+        """ Serialize venues table row data """
         return {
             "website": self.website,
             "seeking_talent": self.seeking_talent,
@@ -95,24 +123,35 @@ class Venue(db.Model, crud_ops):
         }
 
 
+class Venue_Address(db.Model, crud_ops):
+    __tablename__ = "venue_address"
+
+    id = db.Column(db.Integer, primary_key=True)
+    address = db.Column(db.String(250))
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    venue = db.relationship(Venue, back_populates="addresses")
+
+
 class Artist(db.Model, crud_ops):
-    __tablename__ = 'artist'
+    __tablename__ = 'artists'
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    city = Column(String(120))
-    state = Column(String(120))
-    phone = Column(String(120))
-    genres = Column(String(120))
-    image_link = Column(String(500))
-    facebook_link = Column(String(120))
-    website = Column(String(250))
-    seeking_venue = Column(Boolean, default=True)
-    seeking_description = Column(String(500))
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String)
+    city = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    phone = db.Column(db.String(120))
+    image_link = db.Column(db.String(500))
+    facebook_link = db.Column(db.String(120))
+    instagram_link = db.Column(db.String(120))
+    website = db.Column(db.String(250))
+    seeking_venue = db.Column(db.Boolean, default=True)
+    seeking_description = db.Column(db.String(500))
+    genres = db.relationship(Genre, secondary="link")
+    shows = db.relationship("Show")
 
-    def __init__(self, artist_id, name, city, state, phone, genres,
+    def __init__(self, artist_id, name, city, state, phone,
                  image_link, facebook_link, website, seeking_venue,
-                 seeking_description):
+                 seeking_description, genres):
         self.website = website
         self.seeking_venue = seeking_venue
         self.seeking_description = seeking_description
@@ -126,17 +165,45 @@ class Artist(db.Model, crud_ops):
         self.id = artist_id
 
     def serialize(self):
-        """ Serialize venue row """
+        """ Serialize artists table row data """
         return {
             "website": self.website,
             "seeking_venue": self.seeking_venue,
             "seeking_description": self.seeking_description,
             "state": self.state,
-            "address": self.address,
             "genres": self.genres,
             "image_link": self.image_link,
             "facebook_link": self.facebook_link,
             "city": self.city,
             "name": self.name,
             "id": self.id
+        }
+
+
+class Show(db.Model, crud_ops):
+    __tablename__ = "shows"
+
+    artist = db.relationship(Artist, back_populates="shows")
+    venue = db.relationship(Venue, back_populates="shows")
+    id = db.Column(db.Integer, primary_key=True)
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), nullable=False)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    start_time = db.Column(db.DateTime, default=datetime.now())
+    ticket_price = db.Column(db.String(15))
+
+    def __init__(self, show_id, artist_id, venue_id, start_time, ticket_price):
+        self.id = show_id
+        self.venue_id = venue_id
+        self.artist_id = artist_id
+        self.start_time = start_time
+        self.ticket_price = ticket_price
+
+    def serialize(self):
+        """ Serialize Shows table row data """
+        return {
+            "show_id": self.id,
+            "venue_id": self.venue_id,
+            "artist_id": self.artist_id,
+            "start_time": self.start_time,
+            "ticket_price": self.ticket_price
         }
