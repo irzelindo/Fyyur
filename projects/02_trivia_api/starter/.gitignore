@@ -5,6 +5,7 @@ venv
 bin
 include
 lib
+/frontend/node_modules
 
 # OS generated files #
 ######################
