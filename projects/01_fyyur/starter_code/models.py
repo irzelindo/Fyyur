@@ -4,20 +4,21 @@
 """
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
-from config import Config
+from config import Config, SECRET_KEY
 from flask_migrate import Migrate
 
 DATABASE_PATH = Config.SQLALCHEMY_DATABASE_URI
-
+SECRET_KEY = SECRET_KEY
 
 db = SQLAlchemy()
 
 
-def setup_db(app, database_path=DATABASE_PATH):
+def setup_db(app, secret_key=SECRET_KEY, database_path=DATABASE_PATH):
     """ Database setup """
     # print(database_path)
     app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
+    app.config['SECRET_KEY'] = secret_key
     db.app = app
     migrate = Migrate(app, db)
     db.init_app(app)
@@ -25,7 +26,7 @@ def setup_db(app, database_path=DATABASE_PATH):
     # library.
     db.create_all()
 
-# All necessary CRUD operations superclass
+# Implementing all necessary CRUD operations superclass
 class crud_ops():
 
     def insert(self):
@@ -43,9 +44,17 @@ class crud_ops():
         db.session.commit()
 
 
-class Link(db.Model, crud_ops):
-    __tablename__="link"
+class Artist_Genre_Link(db.Model, crud_ops):
+    __tablename__ = "artist_genre_link"
     artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), primary_key=True)
+    genre_id = db.Column(db.Integer, db.ForeignKey("genres.id"), primary_key=True)
+    likes = db.Column(db.Integer)
+    deslikes = db.Column(db.Integer)
+
+
+class Venue_Genre_Link(db.Model, crud_ops):
+    __tablename__ = "venue_genre_link"
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), primary_key=True)
     genre_id = db.Column(db.Integer, db.ForeignKey("genres.id"), primary_key=True)
     likes = db.Column(db.Integer)
     deslikes = db.Column(db.Integer)
@@ -57,7 +66,8 @@ class Genre(db.Model, crud_ops):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(30))
     description = db.Column(db.String(250))
-    artists = db.relationship("Artist", secondary="link")
+    artists = db.relationship("Artist", secondary="artist_genre_link")
+    venues = db.relationship("Venue", secondary="venue_genre_link")
 
     def __init__(self, genre_id, name, description, artists):
         self.id = genre_id
@@ -73,16 +83,12 @@ class Genre(db.Model, crud_ops):
             "description": self.description
         }
 
-# Defining Venue model
-# Inherits from db.Model and crud_ops
+
 class Venue(db.Model, crud_ops):
     __tablename__ = 'venues'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String)
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
-    phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
     website = db.Column(db.String(250))
@@ -90,19 +96,16 @@ class Venue(db.Model, crud_ops):
     seeking_description = db.Column(db.String(500))
     shows = db.relationship("Show")
     address = db.relationship("Venue_Address")
+    genres = db.relationship('Genre', secondary="venue_genre_link")
 
-    def __init__(self, venue_id, name, city, state, address, phone,
+    def __init__(self, venue_id, name,
                  image_link, facebook_link, website, seeking_talent,
                  seeking_description):
         self.website = website
         self.seeking_talent = seeking_talent
         self.seeking_description = seeking_description
-        self.state = state
-        self.address = address
-        self.phone = phone
         self.image_link = image_link
         self.facebook_link = facebook_link
-        self.city = city
         self.name = name
         self.id = venue_id
 
@@ -112,12 +115,8 @@ class Venue(db.Model, crud_ops):
             "website": self.website,
             "seeking_talent": self.seeking_talent,
             "seeking_description": self.seeking_description,
-            "state": self.state,
-            "address": self.address,
-            "phone": self.phone,
             "image_link": self.image_link,
             "facebook_link": self.facebook_link,
-            "city": self.city,
             "name": self.name,
             "id": self.id
         }
@@ -128,8 +127,29 @@ class Venue_Address(db.Model, crud_ops):
 
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String(250))
+    city = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    phone = db.Column(db.String(120))
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
-    venue = db.relationship(Venue, back_populates="addresses")
+    venue = db.relationship(Venue, back_populates="address")
+
+    def __init__(self, id, address, city, state, phone, venue_id):
+        self.id = id
+        self.address = address
+        self.city = city
+        self.state = state
+        self.phone = phone
+        self.venue_id = venue_id
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "address": self.address,
+            "state": self.state,
+            "phone": self.phone,
+            "city": self.city,
+            "venue_id": self.venue_id
+        }
 
 
 class Artist(db.Model, crud_ops):
@@ -146,7 +166,7 @@ class Artist(db.Model, crud_ops):
     website = db.Column(db.String(250))
     seeking_venue = db.Column(db.Boolean, default=True)
     seeking_description = db.Column(db.String(500))
-    genres = db.relationship(Genre, secondary="link")
+    genres = db.relationship(Genre, secondary="artist_genre_link")
     shows = db.relationship("Show")
 
     def __init__(self, artist_id, name, city, state, phone,

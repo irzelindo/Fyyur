@@ -3,15 +3,13 @@
 # Imports
 # ----------------------------------------------------------------------------#
 
-import logging
 import babel
 import dateutil.parser
-from logging import Formatter, FileHandler
 from flask import Flask, render_template, request, flash, redirect, url_for, jsonify
 from flask_moment import Moment
 from forms import *
 from flask_cors import CORS
-from models import setup_db, Venue, Show, Artist, Genre, Link
+from models import setup_db, Venue, Show, Artist, Genre, Artist_Genre_Link, Venue_Genre_Link, Venue_Address
 
 
 # ----------------------------------------------------------------------------#
@@ -514,6 +512,3 @@ def create_app(test_config=None):
         return render_template('pages/home.html')
 
     return app
-
-if __name__ == '__main__':
-    create_app()
