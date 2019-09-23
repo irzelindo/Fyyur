@@ -8,9 +8,8 @@ import dateutil.parser
 from flask import Flask, render_template, request, flash, redirect, url_for, jsonify
 from flask_moment import Moment
 from forms import *
+from models import *
 from flask_cors import CORS
-from models import setup_db, Venue, Show, Artist, Genre, Artist_Genre_Link, Venue_Genre_Link, Venue_Address
-
 
 # ----------------------------------------------------------------------------#
 # App Config.
@@ -108,7 +107,6 @@ def create_app(test_config=None):
         # @TODO: replace with real venues data.
         #   num_shows should be aggregated based on number of upcoming shows per venue.
         # Gathering data from database
-        venues = [venue.serialize() for venue in Venue.query.all()]
         print(venues)
         data = [{
             "city": "San Francisco",
@@ -267,16 +265,10 @@ def create_app(test_config=None):
     @app.route('/artists')
     def artists():
         # @TODO: replace with real data returned from querying the database
-        data = [{
-            "id": 4,
-            "name": "Guns N Petals",
-        }, {
-            "id": 5,
-            "name": "Matt Quevedo",
-        }, {
-            "id": 6,
-            "name": "The Wild Sax Band",
-        }]
+        artist_list = Artist.query.all()
+        serialized_artist_list = [artist.serialize() for artist in artist_list]
+        # print(serialized_artist_list)
+        data = [{"id": row["id"], "name": row["name"]} for row in serialized_artist_list]
         return render_template('pages/artists.html', artists=data)
 
     @app.route('/artists/search', methods=['POST'])
@@ -284,13 +276,16 @@ def create_app(test_config=None):
         # @TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
         # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
         # search for "band" should return "The Wild Sax Band".
+        artist_hint = "%{}%".format(request.form.get("search_term"))
+        search_result = Artist.query.filter(Artist.name.ilike(artist_hint)).all()
+        results = [result.serialize() for result in search_result]
+        data = [{"id": row["id"],
+                 "name": row["name"],
+                 "num_upcoming_shows": "0"} for row in results]
+        print(results)
         response = {
-            "count": 1,
-            "data": [{
-                "id": 4,
-                "name": "Guns N Petals",
-                "num_upcoming_shows": 0,
-            }]
+            "count": len(results),
+            "data": data
         }
         return render_template('pages/search_artists.html', results=response,
                                search_term=request.form.get('search_term', ''))
@@ -300,7 +295,7 @@ def create_app(test_config=None):
         # shows the venue page with the given venue_id
         # @TODO: replace with real venue data from the venues table, using venue_id
         data1 = {
-            "id": 4,
+            "id": 2,
             "name": "Guns N Petals",
             "genres": ["Rock n Roll"],
             "city": "San Francisco",
@@ -322,7 +317,7 @@ def create_app(test_config=None):
             "upcoming_shows_count": 0,
         }
         data2 = {
-            "id": 5,
+            "id": 3,
             "name": "Matt Quevedo",
             "genres": ["Jazz"],
             "city": "New York",
@@ -342,7 +337,7 @@ def create_app(test_config=None):
             "upcoming_shows_count": 0,
         }
         data3 = {
-            "id": 6,
+            "id": 4,
             "name": "The Wild Sax Band",
             "genres": ["Jazz", "Classical"],
             "city": "San Francisco",

@@ -46,6 +46,7 @@ class crud_ops():
 
 class Artist_Genre_Link(db.Model, crud_ops):
     __tablename__ = "artist_genre_link"
+
     artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), primary_key=True)
     genre_id = db.Column(db.Integer, db.ForeignKey("genres.id"), primary_key=True)
     likes = db.Column(db.Integer)
@@ -54,6 +55,7 @@ class Artist_Genre_Link(db.Model, crud_ops):
 
 class Venue_Genre_Link(db.Model, crud_ops):
     __tablename__ = "venue_genre_link"
+
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), primary_key=True)
     genre_id = db.Column(db.Integer, db.ForeignKey("genres.id"), primary_key=True)
     likes = db.Column(db.Integer)
@@ -69,11 +71,10 @@ class Genre(db.Model, crud_ops):
     artists = db.relationship("Artist", secondary="artist_genre_link")
     venues = db.relationship("Venue", secondary="venue_genre_link")
 
-    def __init__(self, genre_id, name, description, artists):
+    def __init__(self, genre_id, name, description):
         self.id = genre_id
         self.name = name
         self.description = description
-        self.artists = artists
 
     def serialize(self):
         """ Serialize genres table row data """
@@ -94,13 +95,13 @@ class Venue(db.Model, crud_ops):
     website = db.Column(db.String(250))
     seeking_talent = db.Column(db.Boolean, default=True)
     seeking_description = db.Column(db.String(500))
-    shows = db.relationship("Show")
-    address = db.relationship("Venue_Address")
+    shows = db.relationship("Show", cascade="all, delete-orphan", back_populates="venues")
+    venue_address = db.relationship("Venue_Address", cascade="all, delete-orphan", back_populates="venues")
     genres = db.relationship('Genre', secondary="venue_genre_link")
 
     def __init__(self, venue_id, name,
-                 image_link, facebook_link, website, seeking_talent,
-                 seeking_description):
+                 image_link=None, facebook_link=None, website=None, seeking_talent=None,
+                 seeking_description=None):
         self.website = website
         self.seeking_talent = seeking_talent
         self.seeking_description = seeking_description
@@ -130,8 +131,8 @@ class Venue_Address(db.Model, crud_ops):
     city = db.Column(db.String(120))
     state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
-    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
-    venue = db.relationship(Venue, back_populates="address")
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=True)
+    venues = db.relationship("Venue", back_populates="venue_address")
 
     def __init__(self, id, address, city, state, phone, venue_id):
         self.id = id
@@ -162,23 +163,21 @@ class Artist(db.Model, crud_ops):
     phone = db.Column(db.String(120))
     image_link = db.Column(db.String(500))
     facebook_link = db.Column(db.String(120))
-    instagram_link = db.Column(db.String(120))
     website = db.Column(db.String(250))
     seeking_venue = db.Column(db.Boolean, default=True)
     seeking_description = db.Column(db.String(500))
-    genres = db.relationship(Genre, secondary="artist_genre_link")
-    shows = db.relationship("Show")
+    genres = db.relationship("Genre", secondary="artist_genre_link")
+    shows = db.relationship("Show", cascade="all, delete-orphan", back_populates="artists")
 
     def __init__(self, artist_id, name, city, state, phone,
                  image_link, facebook_link, website, seeking_venue,
-                 seeking_description, genres):
+                 seeking_description):
         self.website = website
         self.seeking_venue = seeking_venue
         self.seeking_description = seeking_description
         self.city = city
         self.state = state
         self.phone = phone
-        self.genres = genres
         self.image_link = image_link
         self.facebook_link = facebook_link
         self.name = name
@@ -203,13 +202,14 @@ class Artist(db.Model, crud_ops):
 class Show(db.Model, crud_ops):
     __tablename__ = "shows"
 
-    artist = db.relationship(Artist, back_populates="shows")
-    venue = db.relationship(Venue, back_populates="shows")
     id = db.Column(db.Integer, primary_key=True)
-    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), nullable=False)
-    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=False)
+    artist_id = db.Column(db.Integer, db.ForeignKey("artists.id"), nullable=True)
+    venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=True)
     start_time = db.Column(db.DateTime, default=datetime.now())
     ticket_price = db.Column(db.String(15))
+
+    venues = db.relationship("Venue", back_populates="shows")
+    artists = db.relationship("Artist", back_populates="shows")
 
     def __init__(self, show_id, artist_id, venue_id, start_time, ticket_price):
         self.id = show_id
