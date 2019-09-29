@@ -278,13 +278,24 @@ def create_app(test_config=None):
         # @TODO: implement search on artists with partial string search. Ensure it is case-insensitive.
         # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
         # search for "band" should return "The Wild Sax Band".
+        # Getting current data so that can compare it to the shows start time
+        current_date = datetime.now()
         artist_hint = "%{}%".format(request.form.get("search_term"))
         search_result = Artist.query.filter(Artist.name.ilike(artist_hint)).all()
+        # Since we can get more than one artist we only get the
+        # number of upcoming shows if we get one artist instead of
+        # a list of artist
+        if len(search_result) > 1:
+            upcoming_shows = list()
+        else:
+            artist_shows = [artist.shows for artist in search_result]
+            upcoming_shows = [show for show in artist_shows if show[0].start_time > current_date]
         results = [result.serialize() for result in search_result]
+        # Formatting the data to be returned to the view
         data = [{"id": row["id"],
                  "name": row["name"],
-                 "num_upcoming_shows": "0"} for row in results]
-        print(results)
+                 "num_upcoming_shows": len(upcoming_shows)} for row in results]
+        # Returning the response object
         response = {
             "count": len(results),
             "data": data
