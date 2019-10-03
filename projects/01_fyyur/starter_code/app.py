@@ -11,7 +11,6 @@ from forms import *
 from models import *
 from flask_cors import CORS
 
-
 # ----------------------------------------------------------------------------#
 # App Config.
 # ----------------------------------------------------------------------------#
@@ -36,6 +35,8 @@ from flask_cors import CORS
 # ----------------------------------------------------------------------------#
 # Filters.
 # ----------------------------------------------------------------------------#
+CURRENT_DATE = datetime.now()
+
 
 def format_datetime(value, format='medium'):
     date = dateutil.parser.parse(value)
@@ -279,17 +280,21 @@ def create_app(test_config=None):
         # seach for "A" should return "Guns N Petals", "Matt Quevado", and "The Wild Sax Band".
         # search for "band" should return "The Wild Sax Band".
         # Getting current data so that can compare it to the shows start time
-        current_date = datetime.now()
         artist_hint = "%{}%".format(request.form.get("search_term"))
         search_result = Artist.query.filter(Artist.name.ilike(artist_hint)).all()
         # Since we can get more than one artist we only get the
         # number of upcoming shows if we get one artist instead of
-        # a list of artist
+        # a list of artists
+        # If the search_result has more than one artist
+        # upcoming_shows list will still empty
+        # Else if the result is only one artist
+        # Then the upcoming_shows list shall be fulfilled with the shows
         if len(search_result) > 1:
             upcoming_shows = list()
         else:
             artist_shows = [artist.shows for artist in search_result]
-            upcoming_shows = [show for show in artist_shows if show[0].start_time > current_date]
+            # print(artist_shows[0][0].ticket_price)
+            upcoming_shows = [show for show in artist_shows if show[0].start_time > CURRENT_DATE]
         results = [result.serialize() for result in search_result]
         # Formatting the data to be returned to the view
         data = [{"id": row["id"],
@@ -305,9 +310,42 @@ def create_app(test_config=None):
 
     @app.route('/artists/<int:artist_id>')
     def show_artist(artist_id):
-        # shows the venue page with the given venue_id
-        # @TODO: replace with real venue data from the venues table, using venue_id
-        data1 = {
+        # shows the artist page with the given artist_id
+        # @TODO: replace with real artist data from the artists table, using artist_id
+        artist = Artist.query.filter(Artist.id == artist_id).one_or_none()
+        # print(artist.shows)
+        genres = [genre.name for genre in artist.genres]
+        shows = [show for show in artist.shows]
+        past_shows = [{"venue_id": show.venue_id,
+                       "venue_name": show.venues.name,
+                       "venue_image_link": show.venues.image_link,
+                       "start_time": format_datetime(str(show.start_time), format="full")
+                       } for show in shows
+                      if show.start_time < CURRENT_DATE]
+        upcoming_shows = [{"venue_id": show.venue_id,
+                           "venue_name": show.venues.name,
+                           "venue_image_link": show.venues.image_link,
+                           "start_time": format_datetime(str(show.start_time), format="full")
+                           } for show in shows
+                          if show.start_time > CURRENT_DATE]
+        print(genres)
+        data = {"id": artist.id,
+                "name": artist.name,
+                "genres": genres,
+                "city": artist.city,
+                "state": artist.state,
+                "phone": artist.phone,
+                "website": artist.website,
+                "facebook_link": artist.facebook_link,
+                "seeking_venue": artist.seeking_venue,
+                "seeking_description": artist.seeking_description,
+                "image_link": artist.image_link,
+                "past_shows": past_shows,
+                "upcoming_shows": upcoming_shows,
+                "past_shows_count": len(past_shows),
+                "upcoming_shows_count": len(upcoming_shows)
+                }
+        """data1 = {
             "id": 2,
             "name": "Guns N Petals",
             "genres": ["Rock n Roll"],
@@ -378,7 +416,8 @@ def create_app(test_config=None):
             "past_shows_count": 0,
             "upcoming_shows_count": 3,
         }
-        data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
+        """
+        #data = list(filter(lambda d: d['id'] == artist_id, [data1, data2, data3]))[0]
         return render_template('pages/show_artist.html', artist=data)
 
     #  Update
@@ -466,11 +505,11 @@ def create_app(test_config=None):
         shows = Show.query.all()
 
         data = [{"venue_id": shows[i].venue_id,
-                  "venue_name": shows[i].venues.name,
-                  "artist_id": shows[i].artist_id,
-                  "artist_name": shows[i].artists.name,
-                  "artist_image_link": shows[i].artists.image_link,
-                  "start_time": format_datetime(str(shows[i].start_time), format="full")} for i in range(len(shows))]
+                 "venue_name": shows[i].venues.name,
+                 "artist_id": shows[i].artist_id,
+                 "artist_name": shows[i].artists.name,
+                 "artist_image_link": shows[i].artists.image_link,
+                 "start_time": format_datetime(str(shows[i].start_time), format="full")} for i in range(len(shows))]
 
         return render_template('pages/shows.html', shows=data)
 
