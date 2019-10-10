@@ -24,7 +24,8 @@ def setup_db(app, secret_key=SECRET_KEY, database_path=DATABASE_PATH):
     db.init_app(app)
     # No need to run db.create_all() as for now using flask migrations
     # library.
-    db.create_all()
+    # db.create_all()
+
 
 # Implementing all necessary CRUD operations superclass
 class crud_ops():
@@ -62,6 +63,13 @@ class Venue_Genre_Link(db.Model, crud_ops):
     deslikes = db.Column(db.Integer)
 
 
+class City_Venue_Address_Link(db.Model, crud_ops):
+    __tablename__ = "city_venue_address_link"
+
+    city_id = db.Column(db.Integer, db.ForeignKey("cities.id"), primary_key=True)
+    venue_address_id = db.Column(db.Integer, db.ForeignKey("venue_address.id"), primary_key=True)
+
+
 class Genre(db.Model, crud_ops):
     __tablename__ = "genres"
 
@@ -77,7 +85,7 @@ class Genre(db.Model, crud_ops):
         self.description = description
 
     def serialize(self):
-        """ Serialize genres table row data """
+        # Serialize genres table row data
         return {
             "genre_id": self.genre_id,
             "name": self.name,
@@ -128,17 +136,14 @@ class Venue_Address(db.Model, crud_ops):
 
     id = db.Column(db.Integer, primary_key=True)
     address = db.Column(db.String(250))
-    city = db.Column(db.String(120))
-    state = db.Column(db.String(120))
     phone = db.Column(db.String(120))
     venue_id = db.Column(db.Integer, db.ForeignKey("venues.id"), nullable=True)
     venues = db.relationship("Venue", back_populates="venue_address")
+    cities = db.relationship("City", secondary="city_venue_address_link")
 
-    def __init__(self, id, address, city, state, phone, venue_id):
+    def __init__(self, id, address, phone, venue_id):
         self.id = id
         self.address = address
-        self.city = city
-        self.state = state
         self.phone = phone
         self.venue_id = venue_id
 
@@ -146,10 +151,31 @@ class Venue_Address(db.Model, crud_ops):
         return {
             "id": self.id,
             "address": self.address,
-            "state": self.state,
             "phone": self.phone,
-            "city": self.city,
             "venue_id": self.venue_id
+        }
+
+
+class City(db.Model, crud_ops):
+    __tablename__ = "cities"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120))
+    state = db.Column(db.String(120))
+    venues_address = db.relationship("Venue_Address", secondary="city_venue_address_link")
+
+    def __init__(self, id, city, state, venue_address_id):
+        self.id = id
+        self.city = city
+        self.state = state
+        self.venue_address_id = venue_address_id
+
+    def serialize(self):
+        return {
+            "id": self.id,
+            "state": self.state,
+            "city": self.city,
+            "venue_address_id": self.venue_address_id
         }
 
 
@@ -219,7 +245,7 @@ class Show(db.Model, crud_ops):
         self.ticket_price = ticket_price
 
     def serialize(self):
-        """ Serialize Shows table row data """
+        # Serialize Shows table row data
         return {
             "show_id": self.id,
             "venue_id": self.venue_id,
